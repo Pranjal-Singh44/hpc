@@ -1,22 +1,37 @@
-#include<stdio.h>
-#include<stdlib.h>
-#include<time.h>
-#include<omp.h>
-void main() {
-    int num,i;
-    printf("Enter the number of steps : ");
-    scanf_s("%d",&num);
-    time_t st,et;
-    st=clock();
-    double step=1.0/(double)num,pi=0.0;
-    omp_set_num_threads(num);
-    #pragma omp parallel for reduction(+:pi)
-    for(i=0;i<num;i++) {
-        double x=(i+0.5)*step;
-        double local_pi=(4.0*step)/(1+x*x);
-        pi+=local_pi;
+#include <stdio.h>
+#include <omp.h>
+
+int main() {
+    long long steps = 1000000000;
+    double step = 1.0 / steps, pi_serial = 0.0, pi_parallel = 0.0;
+
+    double start_serial = omp_get_wtime();
+    for (long long i = 0; i < steps; i++) {
+        double x = (i + 0.5) * step;
+        pi_serial += 4.0 / (1.0 + x * x);
     }
-    et=clock();
-    printf("Time Taken : %lf\n",(double)((double)(et-st)/CLOCKS_PER_SEC));
-    printf("Value of Pi = %.16lf\n",pi);
+    pi_serial *= step;
+    double end_serial = omp_get_wtime();
+
+    double start_parallel = omp_get_wtime();
+    #pragma omp parallel
+    {
+        double sum = 0.0;
+        #pragma omp for
+        for (long long i = 0; i < steps; i++) {
+            double x = (i + 0.5) * step;
+            sum += 4.0 / (1.0 + x * x);
+        }
+        #pragma omp critical
+        pi_parallel += sum * step;
+    }
+    double end_parallel = omp_get_wtime();
+
+    printf("Pi (Serial): %.15f\n", pi_serial);
+    printf("Serial Time: %.6f seconds\n", end_serial - start_serial);
+
+    printf("Pi (Parallel): %.15f\n", pi_parallel);
+    printf("Parallel Time: %.6f seconds\n", end_parallel - start_parallel);
+
+    return 0;
 }
